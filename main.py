@@ -1,6 +1,5 @@
 import time
 import sys
-import random
 
 
 # ==============================
@@ -15,9 +14,9 @@ class PerformanceTracker:
 
 
 # ==============================
-# QUICK SORT
+# QUICK SORT (GENERIC + REVERSE)
 # ==============================
-def quick_sort(arr, tracker):
+def quick_sort(arr, tracker, key=lambda x: x, reverse=False):
     if len(arr) <= 1:
         return arr
 
@@ -29,37 +28,56 @@ def quick_sort(arr, tracker):
 
     for x in arr:
         tracker.comparisons += 1
-        if x < pivot:
-            left.append(x)
-        elif x > pivot:
-            right.append(x)
+
+        if reverse:
+            if key(x) > key(pivot):
+                left.append(x)
+            elif key(x) < key(pivot):
+                right.append(x)
+            else:
+                middle.append(x)
         else:
-            middle.append(x)
+            if key(x) < key(pivot):
+                left.append(x)
+            elif key(x) > key(pivot):
+                right.append(x)
+            else:
+                middle.append(x)
 
-    return quick_sort(left, tracker) + middle + quick_sort(right, tracker)
+    return (
+        quick_sort(left, tracker, key, reverse)
+        + middle
+        + quick_sort(right, tracker, key, reverse)
+    )
 
 
 # ==============================
-# MERGE SORT
+# MERGE SORT (GENERIC + REVERSE)
 # ==============================
-def merge_sort(arr, tracker):
+def merge_sort(arr, tracker, key=lambda x: x, reverse=False):
     if len(arr) <= 1:
         return arr
 
     mid = len(arr) // 2
-    left = merge_sort(arr[:mid], tracker)
-    right = merge_sort(arr[mid:], tracker)
+    left = merge_sort(arr[:mid], tracker, key, reverse)
+    right = merge_sort(arr[mid:], tracker, key, reverse)
 
-    return merge(left, right, tracker)
+    return merge(left, right, tracker, key, reverse)
 
 
-def merge(left, right, tracker):
+def merge(left, right, tracker, key, reverse):
     result = []
     i = j = 0
 
     while i < len(left) and j < len(right):
         tracker.comparisons += 1
-        if left[i] < right[j]:
+
+        if reverse:
+            condition = key(left[i]) > key(right[j])
+        else:
+            condition = key(left[i]) < key(right[j])
+
+        if condition:
             result.append(left[i])
             i += 1
         else:
@@ -68,29 +86,25 @@ def merge(left, right, tracker):
 
     result.extend(left[i:])
     result.extend(right[j:])
-
     return result
 
 
 # ==============================
 # ANALYSIS FUNCTION
 # ==============================
-def analyze_algorithm(algorithm, data):
+def analyze_algorithm(algorithm, data, key=lambda x: x, reverse=False):
     tracker = PerformanceTracker()
     data_copy = data.copy()
 
     start_time = time.time()
-    sorted_data = algorithm(data_copy, tracker)
+    sorted_data = algorithm(data_copy, tracker, key, reverse)
     end_time = time.time()
-
-    execution_time = end_time - start_time
-    memory_used = sys.getsizeof(sorted_data)
 
     return {
         "sorted_data": sorted_data,
-        "time": execution_time,
+        "time": end_time - start_time,
         "comparisons": tracker.comparisons,
-        "memory": memory_used
+        "memory": sys.getsizeof(sorted_data)
     }
 
 
@@ -100,22 +114,101 @@ def analyze_algorithm(algorithm, data):
 def main():
     print("====== SMART SORTING SYSTEM ======\n")
 
-    # INPUT PHASE
-    data = input("Enter numbers separated by commas: ")
-    try:
-        data_array = list(map(int, data.split(",")))
-    except ValueError:
-        print("Invalid input. Please enter numbers only.")
+    print("Select Data Type:")
+    print("1 - Numbers")
+    print("2 - Strings")
+    print("3 - Objects")
+
+    choice = input("Enter choice: ")
+
+    # ==========================
+    # NUMBERS
+    # ==========================
+    if choice == "1":
+        data = input("Enter numbers separated by commas: ")
+        data_array = [float(x.strip()) for x in data.split(",")]
+        key_function = lambda x: x
+
+    # ==========================
+    # STRINGS
+    # ==========================
+    elif choice == "2":
+        data = input("Enter words separated by commas: ")
+        data_array = [x.strip() for x in data.split(",")]
+        key_function = lambda x: x.lower()
+
+    # ==========================
+    # OBJECTS (MULTI-ATTRIBUTE)
+    # ==========================
+    elif choice == "3":
+
+        class Person:
+            def __init__(self, name, age, grade):
+                self.name = name
+                self.age = age
+                self.grade = grade
+
+            def __repr__(self):
+                return f"{self.name} | Age: {self.age} | Grade: {self.grade}"
+
+        count = int(input("How many people? "))
+        data_array = []
+
+        for _ in range(count):
+            name = input("Enter name: ")
+            age = int(input("Enter age: "))
+            grade = float(input("Enter grade: "))
+            data_array.append(Person(name, age, grade))
+
+        print("\nSort By:")
+        print("1 - Age")
+        print("2 - Name")
+        print("3 - Grade")
+        print("4 - Age then Name")
+        print("5 - Grade then Age")
+
+        sort_choice = input("Choose sorting strategy: ")
+
+        if sort_choice == "1":
+            key_function = lambda p: p.age
+        elif sort_choice == "2":
+            key_function = lambda p: p.name.lower()
+        elif sort_choice == "3":
+            key_function = lambda p: p.grade
+        elif sort_choice == "4":
+            key_function = lambda p: (p.age, p.name.lower())
+        elif sort_choice == "5":
+            key_function = lambda p: (p.grade, p.age)
+        else:
+            print("Invalid choice.")
+            return
+
+    else:
+        print("Invalid choice.")
         return
 
-    print("\n--- SELECTION PHASE ---")
-    print("System will run BOTH Quick Sort and Merge Sort for comparison.\n")
+    # ==========================
+    # SORT DIRECTION
+    # ==========================
+    print("\nSort Direction:")
+    print("1 - Ascending")
+    print("2 - Descending")
 
-    # PROCESSING & ANALYSIS PHASE
-    quick_result = analyze_algorithm(quick_sort, data_array)
-    merge_result = analyze_algorithm(merge_sort, data_array)
+    direction_choice = input("Choose direction: ")
+    reverse = True if direction_choice == "2" else False
 
-    # OUTPUT PHASE
+    print("\nRunning Quick Sort and Merge Sort...\n")
+
+    quick_result = analyze_algorithm(
+        quick_sort, data_array, key_function, reverse
+    )
+    merge_result = analyze_algorithm(
+        merge_sort, data_array, key_function, reverse
+    )
+
+    # ==========================
+    # OUTPUT
+    # ==========================
     print("====== SORTED OUTPUT ======")
     print("Sorted Data:", quick_result["sorted_data"])
 
